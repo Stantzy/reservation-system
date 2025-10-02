@@ -1,5 +1,6 @@
-package io.github.stantzy.reservation_system;
+package io.github.stantzy.reservation_system.reservations;
 
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -7,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 /* класс обработки HTTP-запросов */
 
@@ -29,24 +29,31 @@ public class ReservationController {
     public ResponseEntity<Reservation> getReservationById(
             @PathVariable("id")Long id
     ) {
-        log.info("Called getReservationById: id=" + id);
-        try {
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(reservationService.getReservationById(id));
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+        log.info("Called getReservationById: id={}", id);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(reservationService.getReservationById(id));
     }
 
     @GetMapping
-    public ResponseEntity<List<Reservation>> getAllReservations() {
+    public ResponseEntity<List<Reservation>> getAllReservations(
+            @RequestParam(name = "roomId", required = false) Long roomId,
+            @RequestParam(name = "userId", required = false) Long userId,
+            @RequestParam(name = "pageSize", required = false) Integer pageSize,
+            @RequestParam(name = "pageNumber", required = false) Integer pageNumber
+    ) {
         log.info("Called getAllReservations");
-        return ResponseEntity.ok(reservationService.findAllReservations());
+        var filter = new ReservationSearchFilter(
+                roomId,
+                userId,
+                pageSize,
+                pageNumber
+        );
+        return ResponseEntity.ok(reservationService.searchAllByFilter(filter));
     }
 
     @PostMapping
     public ResponseEntity<Reservation> createReservation(
-            @RequestBody Reservation reservationToCreate
+            @RequestBody @Valid Reservation reservationToCreate
     ) {
         log.info("Called method createReservation");
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -69,12 +76,8 @@ public class ReservationController {
             @PathVariable Long id
     ) {
         log.info("Called method deleteReservation: id={}", id);
-        try {
-            reservationService.cancelReservation(id);
-            return ResponseEntity.ok().build();
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+        reservationService.cancelReservation(id);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/approve")
